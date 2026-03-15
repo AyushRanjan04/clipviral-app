@@ -7,7 +7,7 @@ st.set_page_config(page_title="ClipViral.ai", page_icon="🚀")
 
 # --- SETTINGS ---
 # Use your same API Key here
-API_KEY = "PASTE_YOUR_GOOGLE_API_KEY_HERE"
+API_KEY = "AIzaSyC9z7iyS-k6t91tSJUmYlqcnYpJX8_Zvp4"
 
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
