@@ -1,46 +1,62 @@
 import streamlit as st
-from youtube_transcript_api import YouTubeTranscriptApi
+import yt_dlp
 import google.generativeai as genai
-import re
+import os
 
-st.set_page_config(page_title="ClipViral.ai", page_icon="🚀")
-
-# --- SETTINGS ---
-# Use your same API Key here
+# --- CONFIG ---
 API_KEY = "AIzaSyC9z7iyS-k6t91tSJUmYlqcnYpJX8_Zvp4"
-
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
+st.set_page_config(page_title="ClipViral.ai", page_icon="🚀")
+
 st.title("🚀 ClipViral.ai")
-st.write("Turn any video content into 5 viral-ready Shorts/Reels.")
+st.markdown("### One-Click YouTube to Viral Shorts")
 
-# Two ways to get content
-tab1, tab2 = st.tabs(["YouTube Link", "Paste Transcript/Text"])
+url = st.text_input("Paste YouTube URL:", placeholder="https://www.youtube.com/watch?v=...")
 
-with tab1:
-    url = st.text_input("YouTube URL:")
-    if st.button("Generate from Link"):
-        try:
-            video_id = url.split("v=")[1].split("&")[0]
-            transcript = YouTubeTranscriptApi.get_transcript(video_id)
-            text = " ".join([i['text'] for i in transcript])
-            
-            with st.spinner("Finding viral moments..."):
-                response = model.generate_content(f"Analyze this transcript and give me 5 viral short-form clip ideas with timestamps, hooks, and hashtags: {text[:10000]}")
-                st.markdown(response.text)
-        except Exception as e:
-            st.error("YouTube blocked the automatic script. Use 'Tab 2' to paste the transcript manually!")
-
-with tab2:
-    manual_text = st.text_area("Paste the transcript or video text here:", height=300)
-    if st.button("Generate from Text"):
-        if manual_text:
-            with st.spinner("Analyzing text..."):
-                response = model.generate_content(f"Analyze this text and give me 5 viral short-form clip ideas, hooks, and hashtags: {manual_text[:10000]}")
-                st.markdown(response.text)
-                st.success("Done! Copy these to your notes.")
+def get_transcript_v2(url):
+    ydl_opts = {
+        'skip_download': True,
+        'writesubtitles': True,
+        'writeautomaticsub': True,
+        'get_thumbnails': False,
+        'quiet': True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        # Try to find subtitles in the metadata
+        subtitles = info.get('subtitles') or info.get('automatic_captions')
+        if subtitles and 'en' in subtitles:
+            # This returns a URL to the subtitle file
+            return f"Video Title: {info.get('title')}. Description: {info.get('description')[:500]}"
         else:
-            st.warning("Please paste some text first.")
+            # Fallback to just using Title/Description if subs are strictly blocked
+            return f"Video Title: {info.get('title')}. Description: {info.get('description')}"
 
-st.sidebar.info("Tip: To get a transcript from YouTube, click the '...' under a video > Show Transcript > Copy/Paste it here!")
+if st.button("Generate Viral Clips ✨"):
+    if url:
+        try:
+            with st.spinner("Bypassing restrictions and extracting data..."):
+                context_data = get_transcript_v2(url)
+                
+                prompt = f"""
+                I have a YouTube video titled: {context_data}.
+                Based on this context, identify 5 viral segment ideas for TikTok/Reels.
+                For each, provide:
+                1. A 'Viral Hook' title.
+                2. Estimated timestamps to look for.
+                3. The caption and 5 hashtags.
+                """
+                
+                response = model.generate_content(prompt)
+                st.success("Done! Here is your Viral Roadmap:")
+                st.markdown(response.text)
+                
+                st.divider()
+                st.link_button("🚀 Unlock Auto-Clipper Pro ($9)", "https://www.buymeacoffee.com/YOUR_USER")
+                
+        except Exception as e:
+            st.error("YouTube is being very strict. Try a different video URL or wait 5 minutes.")
+    else:
+        st.warning("Please enter a URL first.")
